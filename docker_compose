@@ -1,0 +1,162 @@
+services:
+  {{- if .uses.baseService}}
+  base: &base
+    build:
+      context: .
+      dockerfile: {{.dockerfilePath}}
+      args:
+        GO111MODULE: "{{.go111module}}"
+    container_name: {{.containerNamePrefix}}-base-container
+    volumes:
+      - .:/{{.workdir}}
+    environment:
+      {{- range $var, $value := .env}}
+      {{$var}}: "{{$value}}"
+      {{- end}}
+      {{- if .uses.postgres}}
+      DATABASE_DSN: {{.databaseDSN}}
+      {{- end}}
+      {{- if .uses.jaeger}}
+      JAEGER_SERVICE_NAME: {{.jaegerServiceName}}
+      {{- end}}
+    depends_on:
+      {{- if .uses.postgres}}
+      - postgres
+      {{- end}}
+      {{- if .uses.jaeger}}
+      - jaeger
+      {{- end}}
+      {{- if .uses.mockServer}}
+      - mock-server
+      {{- end}}
+      {{- if .uses.redis}}
+      - redis
+      {{- end}}
+      {{- if .uses.rabbitmq}}
+      - rabbitmq
+      {{- end}}
+      {{- if .uses.mysql}}
+      - mysql
+      {{- end}}
+  dev:
+    <<: [ *base ]
+    container_name: {{.containerNamePrefix}}-dev
+    command: "{{.devContainer.command}}"
+    ports:
+      {{- range .devContainer.ports}}
+      - "{{.}}"
+      {{- end}}
+  {{- else}}
+  dev:
+    build:
+      context: .
+      dockerfile: {{.dockerfilePath}}
+      args:
+        GO111MODULE: "{{.go111module}}"
+    container_name: {{.containerNamePrefix}}-dev
+    command: "{{.devContainer.command}}"
+    ports:
+      {{- range .devContainer.ports}}
+      - "{{.}}"
+      {{- end}}
+    volumes:
+      - .:/{{.workdir}}
+    environment:
+      {{- range $var, $value := .env}}
+      {{$var}}: "{{$value}}"
+      {{- end}}
+      {{- if .uses.postgres}}
+      DATABASE_DSN: {{.databaseDSN}}
+      {{- end}}
+      {{- if .uses.jaeger}}
+      JAEGER_SERVICE_NAME: {{.jaegerServiceName}}
+      {{- end}}
+    depends_on:
+      {{- if .uses.postgres}}
+      - postgres
+      {{- end}}
+      {{- if .uses.jaeger}}
+      - jaeger
+      {{- end}}
+      {{- if .uses.mockServer}}
+      - mock-server
+      {{- end}}
+      {{- if .uses.redis}}
+      - redis
+      {{- end}}
+      {{- if .uses.rabbitmq}}
+      - rabbitmq
+      {{- end}}
+      {{- if .uses.mysql}}
+      - mysql
+      {{- end}}
+  {{- end}}
+  {{- if .uses.postgres}}
+  postgres:
+    image: "{{.image.postgres}}"
+    restart: always
+    container_name: {{.containerNamePrefix}}-db
+    environment:
+      POSTGRES_PASSWORD: dev
+      POSTGRES_USER: dev
+      POSTGRES_DB: {{.pgDatabase}}
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U iss" ]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    ports:
+      - "5432:5432"
+    command: [ "postgres", "-c", "log_statement=all", "-c", "log_destination=stderr" ]
+  {{- end}}
+  {{- if .uses.jaeger}}
+  jaeger:
+    image: "{{.image.jaeger}}"
+    container_name: {{.containerNamePrefix}}-jaeger
+    ports:
+      - "14268:14268"
+      - "16686:16686"
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "14250:14250"
+      - "9411:9411"
+  {{- end}}
+  {{- if .uses.redis}}
+  redis:
+    image: "{{.image.redis}}"
+    restart: always
+    container_name: {{.containerNamePrefix}}-redis
+    ports:
+      - "6379:6379"
+  {{- end}}
+  {{- if .uses.mockServer}}
+  mock-server:
+    image: "{{.image.mockServer}}"
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    container_name: {{.containerNamePrefix}}-mock-server
+  {{- end}}
+  {{- if .uses.rabbitmq}}
+  rabbitmq:
+    image: "{{.image.rabbitmq}}"
+    ports:
+      - '15672:15672'
+      - '5672:5672'
+    container_name: {{.containerNamePrefix}}-cas-rabbitmq
+  {{- end}}
+  {{- if .uses.mysql}}
+  mysql:
+    image: "{{.image.mysql}}"
+    restart: "always"
+    container_name: {{.containerNamePrefix}}-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: {{.uses.mysqlrootpass}}
+      MYSQL_DATABASE: {{.uses.mysqldatabase}}
+      MYSQL_USER: {{.uses.mysqluser}}
+      MYSQL_PASSWORD: {{.uses.mysqlpass}}
+    ports:
+      - "3306:3306"
+  {{- end}}

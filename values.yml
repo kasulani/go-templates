@@ -1,0 +1,113 @@
+tmp_main.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/app
+tmp_app.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/database
+    - {{.repository}}/{{.project}}/internal/rest
+  has:
+    database: true
+    restAPI: true
+    httpClient: true
+tmp_app_provider.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/database
+    - {{.repository}}/{{.project}}/internal/httpclient # remove this import if httpClient is false
+    - {{.repository}}/{{.project}}/internal/rest
+    - {{.repository}}/{{.project}}/internal/telemetry
+  has:
+    database: true
+    restAPI: true
+    httpClient: true
+tmp_app_command.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/rest
+  has:
+    database: true
+    restAPI: true
+    httpClient: true
+  rootCommand: "app"
+tmp_httpclient_example.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/logging
+    - {{.repository}}/{{.project}}/internal/telemetry
+tmp_httpclient_middleware.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/logging
+    - {{.repository}}/{{.project}}/internal/telemetry
+tmp_rest_factory.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/httpclient # remove this import if httpClient is false
+    - {{.repository}}/{{.project}}/internal/logging
+    - {{.repository}}/{{.project}}/internal/telemetry
+tmp_rest_endpoints.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/httpclient # remove this import if httpClient is false
+    - {{.repository}}/{{.project}}/internal/logging
+  serviceName: {{.project}}
+tmp_rest_middleware.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/logging
+    - {{.repository}}/{{.project}}/internal/telemetry
+tmp_rest_server.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/logging
+    - {{.repository}}/{{.project}}/internal/telemetry
+tmp_database.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/telemetry
+  databaseName: {{.project}}
+  uses:
+    postgres: true
+tmp_repository.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/database
+tmp_repository_factory.go:
+  imports:
+    - {{.repository}}/{{.project}}/internal/database
+tmp_telemetry_factory.go:
+  serviceName: {{.project}}
+makefile:
+  binaryName: app # binary name should be the same as the root command in tmp_app_command.go file
+  binarySrc: cmd/app
+  bddTestDir: internal/behaviour
+dockerfile:
+  goImage: golang:1.23
+  workdir: {{.project}}
+docker_compose:
+  containerNamePrefix: {{.project}}
+  dockerfilePath: dockerfiles/development/Dockerfile
+  go111module: on
+  workdir: {{.project}}
+  env:
+    LOG_LEVEL: "debug"
+    REST_API_SERVER_ADDRESS: "0.0.0.0:80"
+    ENVIRONMENT: "development"
+    # add jaeger environment variables if you are using jaeger for traces
+    JAEGER_AGENT_HOST: "jaeger"
+    JAEGER_AGENT_PORT: "6831"
+    JAEGER_SAMPLE_RATE: "1"
+    # add redis environment variables if you are using redis
+    #REDIS_SERVER: "redis:6379"
+  uses:
+    baseService: false
+    postgres: true
+    jaeger: true
+    mockServer: true
+    redis: false
+    rabbitmq: false
+    mysql: false
+  devContainer:
+    command: "CompileDaemon -build='make install-all' -command='tail -f /dev/null'"
+    ports:
+      - 9080:80 # change the port if you want
+  image:
+    jaeger: "jaegertracing/all-in-one:1.24"
+    postgres: "postgres:12.2"
+    redis: "redis:6-alpine"
+    rabbitmq: "rabbitmq:3.6-management"
+    mysql: "mysql:8.0.26"
+    mockServer: "thiht/smocker"
+  jaegerServiceName: {{.project}}
+  pgDatabase: {{.project}}
+  databaseDSN: "postgres://dev:dev@postgres:5432/{{.project}}?sslmode=disable"
